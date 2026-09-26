@@ -3,8 +3,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-from langchain_community.vectorstores import Chroma
-from embeddings import LocalHuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from embeddings import get_embedding_model
 from langchain_classic.retrievers.multi_query import MultiQueryRetriever
 from langchain_core.documents import Document
 load_dotenv()
@@ -19,10 +19,8 @@ docs = [
     Document(page_content="Support Vector Machines are supervised learning algorithms.")
 ]
 
-#  2. Create embeddings
-embeddings = LocalHuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+#  2. Create embeddings (Google Free API)
+embeddings = get_embedding_model()
 
 
 # 3. Store embeddings into Chroma vector store

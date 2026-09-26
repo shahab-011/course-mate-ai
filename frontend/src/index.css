@@ -1,11 +1,11 @@
 :root {
   --bg-base: #050608;
   --bg-deep: #0a0c12;
-  --bg-card: rgba(10, 14, 22, 0.18);
-  --bg-card-hover: rgba(15, 19, 28, 0.28);
-  --bg-glass: rgba(13, 18, 28, 0.2);
+  --bg-card: rgba(255, 255, 255, 0.02);
+  --bg-card-hover: rgba(255, 255, 255, 0.06);
+  --bg-glass: rgba(255, 255, 255, 0.03);
 
-  --border-color: rgba(255, 255, 255, 0.09);
+  --border-color: rgba(255, 255, 255, 0.12);
   --border-glow: rgba(129, 140, 248, 0.4);
 
   --accent-indigo: #6366f1;
@@ -93,8 +93,11 @@ a, button, input, label, [role="button"] {
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(70px);
   opacity: 0.35;
+  will-change: transform;
+  transform: translateZ(0);
+  pointer-events: none;
 }
 
 .orb-1 {
@@ -126,14 +129,15 @@ a, button, input, label, [role="button"] {
 
 /* ===== Glass Panel ===== */
 .glass-panel {
-  background: rgba(12, 16, 25, 0.12);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 14, 26, 0.04);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
-  box-shadow: 0 14px 35px rgba(2, 6, 23, 0.18), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
 }
 
 .glass-panel::before {
@@ -141,9 +145,9 @@ a, button, input, label, [role="button"] {
   position: absolute;
   inset: 0;
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent 35%, transparent 65%, rgba(99, 102, 241, 0.06));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%, transparent 60%, rgba(99, 102, 241, 0.08));
   pointer-events: none;
-  opacity: 0.8;
+  opacity: 0.3;
 }
 
 /* ===== Gradient Text ===== */
@@ -171,7 +175,7 @@ a, button, input, label, [role="button"] {
   font-weight: 600;
   font-family: var(--font-heading);
   font-size: 0.88rem;
-  cursor: none;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -207,7 +211,7 @@ a, button, input, label, [role="button"] {
   border-radius: 10px;
   font-weight: 500;
   font-size: 0.82rem;
-  cursor: none;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -283,5 +287,5 @@ a, button, input, label, [role="button"] {
 
 /* Inputs */
 input, textarea {
-  cursor: none;
+  cursor: text;
 }

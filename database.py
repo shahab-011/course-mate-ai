@@ -6,7 +6,7 @@
 from dotenv import load_dotenv
 from pypdf import PdfReader
 from langchain_core.documents import Document
-from embeddings import LocalHuggingFaceEmbeddings
+from embeddings import get_embedding_model
 from langchain_chroma import Chroma
 
 load_dotenv()
@@ -20,9 +20,12 @@ pdf_path = "document loader/deep-learning.pdf"
 
 reader = PdfReader(pdf_path)
 
+if len(reader.pages) > 5:
+    print(f"Warning: PDF has {len(reader.pages)} pages. Limiting to the first 5 pages.")
+
 docs = []
 
-for page_number, page in enumerate(reader.pages):
+for page_number, page in enumerate(reader.pages[:5]):
 
     text = page.extract_text()
 
@@ -87,19 +90,17 @@ for doc in docs:
 print("Number of chunks:", len(chunks))
 
 # --------------------------------
-# 3. Hugging Face Embeddings
+# 3. Google Gemini Embeddings
 # --------------------------------
 
-embeddings = LocalHuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+embeddings = get_embedding_model()
 
 # --------------------------------
 # 4. Store in ChromaDB in batches
 # --------------------------------
 
 vectorstore = Chroma(
-    collection_name="deep_learning",
+    collection_name="deep_learning_gemini",
     embedding_function=embeddings,
     persist_directory="chroma_db"
 )

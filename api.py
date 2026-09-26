@@ -47,9 +47,8 @@ app.add_middleware(
 
 DOCUMENTS_DIR = "document loader"
 CHROMA_DIR = "chroma_db"
-COLLECTION_NAME = "deep_learning"
-
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+COLLECTION_NAME = "deep_learning_gemini"
+EMBEDDING_MODEL_NAME = "Google Gemini Embeddings (gemini-embedding-001)"
 
 os.makedirs(DOCUMENTS_DIR, exist_ok=True)
 
@@ -65,22 +64,13 @@ llm = None
 
 def get_embeddings():
     """
-    Load the HuggingFace embedding model only when needed.
-    This prevents Render from blocking during startup.
+    Load Google Gemini embedding model (models/text-embedding-004).
     """
-
     global embeddings_model
 
     if embeddings_model is None:
-        print("Loading HuggingFace embedding model...")
-
-        from embeddings import LocalHuggingFaceEmbeddings
-
-        embeddings_model = LocalHuggingFaceEmbeddings(
-            model_name=EMBEDDING_MODEL_NAME
-        )
-
-        print("HuggingFace embedding model loaded successfully.")
+        from embeddings import get_embedding_model
+        embeddings_model = get_embedding_model()
 
     return embeddings_model
 
@@ -89,11 +79,10 @@ def get_vectorstore():
     """
     Create/load Chroma only when needed.
     """
-
     global vectorstore
 
     if vectorstore is None:
-        print("Initializing Chroma vector store...")
+        print("Initializing Chroma vector store with Google Gemini embeddings...")
 
         from langchain_chroma import Chroma
 
@@ -141,10 +130,15 @@ prompt_template = ChatPromptTemplate.from_messages(
             "system",
             """You are an expert academic tutor and AI assistant helping students study from their books and documents.
 
-Answer the question thoroughly and accurately using ONLY the provided context snippets from the student's books/documents.
+Answer the question thoroughly, clearly, and concisely using ONLY the provided context snippets from the student's books/documents.
+
+Formatting Rules for Output:
+1. Present your answer in clean, well-spaced paragraphs and bullet points.
+2. Do NOT use raw markdown tables (e.g. '| Area | Details |') or raw HTML tags like '<br>'.
+3. Use bold text for key terms or section headings.
+4. Keep the text clean, elegant, readable, and well-structured.
 
 If the answer is not in the provided context, state:
-
 "I could not find the answer in your uploaded documents."
 """
         ),
@@ -303,62 +297,47 @@ async def upload_document(
     file: UploadFile = File(...)
 ):
 
+    import io
     from langchain_core.documents import Document
 
     if not file.filename.lower().endswith(
         (".pdf", ".txt")
     ):
-
         raise HTTPException(
             status_code=400,
             detail="Only PDF and TXT files are supported."
         )
 
-    file_path = os.path.join(
-        DOCUMENTS_DIR,
-        file.filename
-    )
-
-    with open(file_path, "wb") as buffer:
-
-        shutil.copyfileobj(
-            file.file,
-            buffer
-        )
-
-    # Get vector store only when actually needed
-    store = get_vectorstore()
-
+    contents = await file.read()
     chunks = []
-
     page_count = 0
 
     # ========================================================
     # PDF
     # ========================================================
-
     if file.filename.lower().endswith(".pdf"):
-
-        reader = PdfReader(file_path)
-
+        pdf_stream = io.BytesIO(contents)
+        reader = PdfReader(pdf_stream)
         page_count = len(reader.pages)
 
-        for page_number, page in enumerate(
-            reader.pages
-        ):
+        if page_count > 5:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"PDF limit exceeded! Uploaded document '{file.filename}' has {page_count} pages. "
+                    f"Maximum allowed limit is 5 pages."
+                )
+            )
 
+        for page_number, page in enumerate(reader.pages):
             text = page.extract_text()
-
             if text:
-
                 text_chunks = split_text(
                     text,
                     chunk_size=1000,
                     chunk_overlap=200
                 )
-
                 for chunk in text_chunks:
-
                     chunks.append(
                         Document(
                             page_content=chunk,
@@ -372,26 +351,15 @@ async def upload_document(
     # ========================================================
     # TXT
     # ========================================================
-
     else:
-
-        with open(
-            file_path,
-            "r",
-            encoding="utf-8",
-            errors="ignore"
-        ) as f:
-
-            text = f.read()
-
+        text = contents.decode("utf-8", errors="ignore")
+        page_count = 1
         text_chunks = split_text(
             text,
             chunk_size=1000,
             chunk_overlap=200
         )
-
         for chunk in text_chunks:
-
             chunks.append(
                 Document(
                     page_content=chunk,
@@ -401,6 +369,17 @@ async def upload_document(
                     }
                 )
             )
+
+    # Save to DOCUMENTS_DIR after validation passes
+    file_path = os.path.join(
+        DOCUMENTS_DIR,
+        file.filename
+    )
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    # Get vector store only when actually needed
+    store = get_vectorstore()
 
     # ========================================================
     # ADD TO CHROMA

@@ -1,25 +1,18 @@
 from pypdf import PdfReader
-from embeddings import LocalHuggingFaceEmbeddings
+from embeddings import get_embedding_model
 
-# 1. Load PDF from document loader directory
-pdf_path = "document loader/deep-learning.pdf"
-reader = PdfReader(pdf_path)
-
-# Extract text from the first page for testing
-page_text = reader.pages[0].extract_text()
+test_text = "Deep Learning is a subset of machine learning based on artificial neural networks."
 
 print("=" * 60)
-print(f"Loaded PDF: {pdf_path}")
-print(f"Total Pages in PDF: {len(reader.pages)}")
-print(f"Sample Text (Page 1 - first 250 chars):\n{page_text[:250]}...")
+print(f"Test Text: {test_text}")
 print("=" * 60)
 
-# 2. Create embedding using local Hugging Face model
-embeddings_model = LocalHuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vector = embeddings_model.embed_query(page_text)
+# 2. Create embedding using Google Gemini Embeddings
+embeddings_model = get_embedding_model()
+vector = embeddings_model.embed_query(test_text)
 
-print("\nGENERATED EMBEDDING VECTOR:")
+print("\nGENERATED GOOGLE GEMINI EMBEDDING VECTOR:")
 print("=" * 60)
 print(f"Vector Dimensions: {len(vector)}")
-print(f"\nFull Vector Values:\n{vector}")
+print(f"\nSample Vector Values (first 10 values):\n{vector[:10]}...")
 print("=" * 60)

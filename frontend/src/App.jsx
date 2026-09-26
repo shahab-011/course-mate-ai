@@ -32,7 +32,13 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const API_BASE = 'http://127.0.0.1:8765/api';
+const getApiBase = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return 'http://127.0.0.1:8765/api';
+  const cleanUrl = envUrl.trim().replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+const API_BASE = getApiBase();
 
 /* ============================================================
    ANIMATED BACKGROUND — grid + floating orbs
@@ -349,6 +355,164 @@ function AboutPage({ onGoToChat }) {
 }
 
 /* ============================================================
+   FORMATTED TEXT RENDERER — Parses markdown, bold, lists & tables
+============================================================ */
+function FormattedText({ text }) {
+  if (!text) return null;
+
+  const cleanSource = text.replace(/<br\s*\/?>/gi, '\n');
+  const rawLines = cleanSource.split('\n');
+
+  const blocks = [];
+  let currentTable = [];
+  let currentList = [];
+  let currentParagraph = [];
+
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      const pText = currentParagraph.join(' ').trim();
+      if (pText) {
+        blocks.push({ type: 'paragraph', text: pText });
+      }
+      currentParagraph = [];
+    }
+  };
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      blocks.push({ type: 'list', items: [...currentList] });
+      currentList = [];
+    }
+  };
+
+  const flushTable = () => {
+    if (currentTable.length > 0) {
+      blocks.push({ type: 'table', rows: [...currentTable] });
+      currentTable = [];
+    }
+  };
+
+  rawLines.forEach((line) => {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      flushParagraph();
+      flushList();
+      if (!/^\|[\s\-:|]+\|$/.test(trimmed)) {
+        const cells = trimmed
+          .split('|')
+          .slice(1, -1)
+          .map((c) => c.trim());
+        currentTable.push(cells);
+      }
+      return;
+    } else {
+      flushTable();
+    }
+
+    if (/^[\-\*\•]\s+/.test(trimmed) || /^\d+[\.\)]\s+/.test(trimmed)) {
+      flushParagraph();
+      const content = trimmed.replace(/^[\-\*\•\d\.\)]+\s+/, '');
+      currentList.push(content);
+      return;
+    } else if (currentList.length > 0 && trimmed === '') {
+      flushList();
+    }
+
+    if (trimmed.startsWith('### ')) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'h3', text: trimmed.replace(/^###\s+/, '') });
+      return;
+    } else if (trimmed.startsWith('## ')) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'h2', text: trimmed.replace(/^##\s+/, '') });
+      return;
+    } else if (trimmed.startsWith('# ')) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'h1', text: trimmed.replace(/^#\s+/, '') });
+      return;
+    }
+
+    if (trimmed === '') {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    currentParagraph.push(trimmed);
+  });
+
+  flushParagraph();
+  flushList();
+  flushTable();
+
+  const renderInline = (str) => {
+    if (!str) return '';
+    const parts = str.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="formatted-text-content">
+      {blocks.map((block, bIdx) => {
+        if (block.type === 'h1') return <h3 key={bIdx} className="formatted-h1">{renderInline(block.text)}</h3>;
+        if (block.type === 'h2') return <h4 key={bIdx} className="formatted-h2">{renderInline(block.text)}</h4>;
+        if (block.type === 'h3') return <h5 key={bIdx} className="formatted-h3">{renderInline(block.text)}</h5>;
+        if (block.type === 'paragraph') return <p key={bIdx} className="formatted-p">{renderInline(block.text)}</p>;
+        if (block.type === 'list') {
+          return (
+            <ul key={bIdx} className="formatted-ul">
+              {block.items.map((item, iIdx) => (
+                <li key={iIdx}>{renderInline(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.type === 'table') {
+          const header = block.rows[0];
+          const body = block.rows.slice(1);
+          return (
+            <div key={bIdx} className="formatted-table-wrapper">
+              <table className="formatted-table">
+                {header && (
+                  <thead>
+                    <tr>
+                      {header.map((cell, cIdx) => (
+                        <th key={cIdx}>{renderInline(cell)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                )}
+                {body.length > 0 && (
+                  <tbody>
+                    {body.map((row, rIdx) => (
+                      <tr key={rIdx}>
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx}>{renderInline(cell)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
+              </table>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
    MAIN APP
 ============================================================ */
 export default function App() {
@@ -504,20 +668,26 @@ export default function App() {
           </div>
 
           <div className="header-right">
-            <button
+            <motion.button
               className={`nav-button ${activeView === 'chat' ? 'active' : ''}`}
               onClick={() => setActiveView('chat')}
+              whileHover={{ scale: 1.05, y: -1 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
               Home
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               className={`nav-button ${activeView === 'about' ? 'active' : ''}`}
               onClick={() => setActiveView('about')}
+              whileHover={{ scale: 1.05, y: -1 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
               About
-            </button>
-            <span className="badge badge-model" title="Uses sentence-transformers/all-MiniLM-L6-v2 locally">
-              <Cpu size={12} /> all-MiniLM-L6-v2
+            </motion.button>
+            <span className="badge badge-model" title="Uses Google Generative AI text-embedding-004">
+              <Cpu size={12} /> text-embedding-004
             </span>
             <span className="badge badge-free">
               <Zap size={12} /> 0 API Costs
@@ -537,23 +707,28 @@ export default function App() {
             <motion.main
               key="chat"
               className="app-main"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, y: 15, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -15, scale: 0.99 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             >
               {/* Sidebar */}
               <motion.aside
                 className="sidebar glass-panel"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
+                transition={{ duration: 0.4, delay: 0.05 }}
               >
                 <div className="sidebar-title">
                   <BookOpen size={18} /> My Library
                 </div>
 
-                <label className="upload-dropzone">
+                <motion.label
+                  className="upload-dropzone"
+                  whileHover={{ scale: 1.01, borderColor: 'rgba(129, 140, 248, 0.5)' }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                >
                   <input
                     type="file"
                     accept=".pdf,.txt"
@@ -569,8 +744,8 @@ export default function App() {
                   <div className="upload-text">
                     {uploading ? 'Processing...' : 'Upload Document'}
                   </div>
-                  <div className="upload-subtext">PDF & TXT supported</div>
-                </label>
+                  <div className="upload-subtext">PDF (max 5 pages) & TXT supported</div>
+                </motion.label>
 
                 {uploadStatus && <div className="upload-status-box">{uploadStatus}</div>}
 
@@ -584,7 +759,8 @@ export default function App() {
                         key={idx}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.05 }}
+                        whileHover={{ scale: 1.02, x: 2 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       >
                         <div className="doc-icon">
                           <FileText size={18} />
@@ -609,16 +785,22 @@ export default function App() {
                 className="chat-container glass-panel"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.15 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
               >
                 <div className="chat-header">
                   <div className="chat-header-title">
                     <Sparkles size={18} style={{ color: '#818cf8' }} /> Study Assistant
                   </div>
                   {messages.length > 0 && (
-                    <button className="btn-secondary" onClick={clearChat}>
+                    <motion.button
+                      className="btn-secondary"
+                      onClick={clearChat}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    >
                       <Trash2 size={14} /> Clear
-                    </button>
+                    </motion.button>
                   )}
                 </div>
 
@@ -626,25 +808,23 @@ export default function App() {
                   {messages.length === 0 ? (
                     <motion.div
                       className="welcome-card glass-panel"
-                      initial={{ opacity: 0, scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
+                      transition={{ duration: 0.4, delay: 0.15 }}
                     >
                       <div className="welcome-icon">
                         <Bot size={32} />
                       </div>
                       <h2 className="welcome-title">Ask Anything About Your Documents</h2>
                       <p className="welcome-subtitle">
-                        Upload your study materials on the left. The AI reads them using the local
-                        sentence-transformers/all-MiniLM-L6-v2 embedding model and answers with
-                        page-level citations.
+                        Upload your study materials on the left. The AI reads them using the Google
+                        Gemini text-embedding-004 model and answers with page-level citations.
                       </p>
 
                       <div className="model-note-home">
-                        <strong>Local embedding model:</strong> sentence-transformers/all-MiniLM-L6-v2
+                        <strong>Embedding Model:</strong> Google Generative AI (models/text-embedding-004)
                         <br />
-                        This model is downloaded locally on first run and may take a few minutes on a
-                        machine without the cache already installed.
+                        Generates high-accuracy 768-dimensional semantic embeddings for fast and precise document search.
                       </div>
 
                       <div className="suggestions-grid">
@@ -660,9 +840,9 @@ export default function App() {
                             onClick={() => handleSuggestionClick(s.text)}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 + i * 0.08 }}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            transition={{ delay: 0.25 + i * 0.06 }}
+                            whileHover={{ scale: 1.03, y: -2 }}
+                            whileTap={{ scale: 0.97 }}
                           >
                             {s.icon} {s.text}
                           </motion.button>
@@ -674,15 +854,15 @@ export default function App() {
                       <motion.div
                         className={`message-wrapper ${msg.sender}`}
                         key={msg.id}
-                        initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ duration: 0.35 }}
+                        transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                       >
                         <div className={`message-avatar ${msg.sender}`}>
                           {msg.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
                         </div>
                         <div className="message-bubble">
-                          <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+                          <FormattedText text={msg.text} />
 
                           {msg.sender === 'ai' && msg.sources && msg.sources.length > 0 && (
                             <div className="citation-box">
@@ -706,7 +886,7 @@ export default function App() {
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.3 }}
+                                    transition={{ duration: 0.25, ease: 'easeOut' }}
                                   >
                                     {msg.sources.map((src, sIdx) => (
                                       <div className="citation-item" key={sIdx}>
@@ -732,6 +912,7 @@ export default function App() {
                       className="message-wrapper ai"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
                     >
                       <div className="message-avatar ai">
                         <Bot size={18} />
@@ -741,7 +922,7 @@ export default function App() {
                         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                       >
                         <Loader2 size={16} className="spinner" />
-                        <span>Searching documents with Hugging Face vectors...</span>
+                        <span>Searching documents with Google Gemini vectors...</span>
                       </div>
                     </motion.div>
                   )}
@@ -758,13 +939,16 @@ export default function App() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     disabled={loading}
                   />
-                  <button
+                  <motion.button
                     className="btn-primary"
                     onClick={() => handleSend()}
                     disabled={loading || !input.trim()}
+                    whileHover={loading || !input.trim() ? {} : { scale: 1.04, y: -1 }}
+                    whileTap={loading || !input.trim() ? {} : { scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   >
                     <Send size={16} /> Ask AI
-                  </button>
+                  </motion.button>
                 </div>
               </motion.section>
             </motion.main>

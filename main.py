@@ -1,18 +1,16 @@
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from embeddings import LocalHuggingFaceEmbeddings
+from embeddings import get_embedding_model
 from langchain_chroma import Chroma
 load_dotenv()
 
-# 1. Load embeddings model and vectorstore
-embeddings_model = LocalHuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+# 1. Load Google Gemini embeddings model and vectorstore
+embeddings_model = get_embedding_model()
 
 # 2. Load Chroma vectorstore
 vectorstore = Chroma(
-    collection_name="deep_learning",
+    collection_name="deep_learning_gemini",
     persist_directory="chroma_db",
     embedding_function=embeddings_model
 )
