@@ -806,49 +806,51 @@ export default function App() {
 
                 <div className="messages-area">
                   {messages.length === 0 ? (
-                    <motion.div
-                      className="welcome-card glass-panel"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.4, delay: 0.15 }}
-                    >
-                      <div className="welcome-icon">
-                        <Bot size={32} />
-                      </div>
-                      <h2 className="welcome-title">Ask Anything About Your Documents</h2>
-                      <p className="welcome-subtitle">
-                        Upload your study materials on the left. The AI reads them using the Google
-                        Gemini free embedding model and answers with page-level citations.
-                      </p>
+                    <div className="welcome-card-wrapper">
+                      <motion.div
+                        className="welcome-card glass-panel"
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4, delay: 0.15 }}
+                      >
+                        <div className="welcome-icon">
+                          <Bot size={32} />
+                        </div>
+                        <h2 className="welcome-title">Ask Anything About Your Documents</h2>
+                        <p className="welcome-subtitle">
+                          Upload your study materials on the left. The AI reads them using the Google
+                          Gemini free embedding model and answers with page-level citations.
+                        </p>
 
-                      <div className="model-note-home">
-                        <strong>Embedding Model:</strong> Google Generative AI (models/gemini-embedding-001)
-                        <br />
-                        Generates high-accuracy 3072-dimensional semantic embeddings for fast and precise document search.
-                      </div>
+                        <div className="model-note-home">
+                          <strong>Embedding Model:</strong> Google Generative AI (models/gemini-embedding-001)
+                          <br />
+                          Generates high-accuracy 3072-dimensional semantic embeddings for fast and precise document search.
+                        </div>
 
-                      <div className="suggestions-grid">
-                        {[
-                          { icon: '💡', text: 'Summarize the key concepts in this document' },
-                          { icon: '📐', text: 'Explain the main topic in simple terms' },
-                          { icon: '🧠', text: 'What are the important takeaways?' },
-                          { icon: '📑', text: 'Create a study outline from this material' },
-                        ].map((s, i) => (
-                          <motion.button
-                            key={i}
-                            className="suggestion-pill"
-                            onClick={() => handleSuggestionClick(s.text)}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.25 + i * 0.06 }}
-                            whileHover={{ scale: 1.03, y: -2 }}
-                            whileTap={{ scale: 0.97 }}
-                          >
-                            {s.icon} {s.text}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
+                        <div className="suggestions-grid">
+                          {[
+                            { icon: '💡', text: 'Summarize the key concepts in this document' },
+                            { icon: '📐', text: 'Explain the main topic in simple terms' },
+                            { icon: '🧠', text: 'What are the important takeaways?' },
+                            { icon: '📑', text: 'Create a study outline from this material' },
+                          ].map((s, i) => (
+                            <motion.button
+                              key={i}
+                              className="suggestion-pill"
+                              onClick={() => handleSuggestionClick(s.text)}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.25 + i * 0.06 }}
+                              whileHover={{ scale: 1.03, y: -2 }}
+                              whileTap={{ scale: 0.97 }}
+                            >
+                              {s.icon} {s.text}
+                            </motion.button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    </div>
                   ) : (
                     messages.map((msg) => (
                       <motion.div
