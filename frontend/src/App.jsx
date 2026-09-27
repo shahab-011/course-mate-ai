@@ -686,8 +686,8 @@ export default function App() {
             >
               About
             </motion.button>
-            <span className="badge badge-model" title="Uses Google Generative AI text-embedding-004">
-              <Cpu size={12} /> text-embedding-004
+            <span className="badge badge-model" title="Uses Google Generative AI gemini-embedding-001">
+              <Cpu size={12} /> gemini-embedding-001
             </span>
             <span className="badge badge-free">
               <Zap size={12} /> 0 API Costs
@@ -818,13 +818,13 @@ export default function App() {
                       <h2 className="welcome-title">Ask Anything About Your Documents</h2>
                       <p className="welcome-subtitle">
                         Upload your study materials on the left. The AI reads them using the Google
-                        Gemini text-embedding-004 model and answers with page-level citations.
+                        Gemini free embedding model and answers with page-level citations.
                       </p>
 
                       <div className="model-note-home">
-                        <strong>Embedding Model:</strong> Google Generative AI (models/text-embedding-004)
+                        <strong>Embedding Model:</strong> Google Generative AI (models/gemini-embedding-001)
                         <br />
-                        Generates high-accuracy 768-dimensional semantic embeddings for fast and precise document search.
+                        Generates high-accuracy 3072-dimensional semantic embeddings for fast and precise document search.
                       </div>
 
                       <div className="suggestions-grid">
